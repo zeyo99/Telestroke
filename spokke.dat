@@ -1,0 +1,51 @@
+# Number of Hub Hospitals
+param m := 2; 
+
+# Number of spoke Hospitals
+param n := 4;
+
+#Big M
+param M_penalty := 1000;
+
+#preference
+param pref_noise : 1 2 3 4 :=
+1  0.2  4.1  1.5 2.0
+2  3.3  0.8  2.7 1.0;
+
+# Capacity of Hub Hospitals d_i
+param d := 
+  1  690
+  2  690;
+
+
+# Cost per unit of capacity for each Hub Hospital p_i
+param p := 
+  1  206
+  2  206;
+
+
+# Demand of spoke Hospitals T_j
+param T := 
+  1  2000
+  2  2000
+  3  2000
+  4  2000; #太多
+
+# Additional cost for each spoke Hospital c_j
+param c_spoke := 
+  1  40
+  2  40
+  3  40
+  4  40;
+
+
+# Budget limit for each spoke Hospital B_j
+param B_spoke := 
+  1  20000
+  2  50000
+  3  50000
+  4  100000;
+
+
+# Regularization parameter delta
+param delta := 0.1;

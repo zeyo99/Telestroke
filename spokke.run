@@ -1,0 +1,16 @@
+reset;
+model spoke_no_kkt.mod;
+data spokke.dat;
+
+option solver gurobi;
+option gurobi_options 'mipgap=0';
+solve;
+
+param mod_name symbolic := "spoke_no_kkt.mod";
+
+# Display the allocation of patients from HUB hospitals to Spoke hospitals
+display x;
+display total_obj;
+display delta;
+printf "--- solve %s in %s ---\n", mod_name, $solver;
+

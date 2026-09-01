@@ -1,0 +1,3 @@
+清除控制台 : ctrl + k
+Run AMPL file : ctrl + shift + t
+Reset: 

@@ -1,0 +1,20 @@
+reset;
+
+model hub1_MPEC.mod;
+data hub1_MPEC.dat;
+
+option solver gurobi; 
+option gurobi_options 'nonconvex=2';
+solve;
+
+printf"Round 1\n";
+printf"================== Hub 1 之總利潤====================\n";
+display Hub1_profit;
+#printf"================== Spoke之目標值====================\n";
+#display Spoke_obj;
+printf"====================Hub變數=======================\n";
+display p1,d1;
+printf"===================Spoke變數======================\n";
+display x;
+
+
