@@ -1,0 +1,113 @@
+reset;
+model hub_EPEC.mod;
+data hub_EPEC.dat;
+
+option solver gurobi;
+option gurobi_options 'nonconvex=2 mipgap=1e-9';
+option presolve_eps 1e-6;
+
+# ==========================================
+# 多起點掃描設定（固定 Hub1 先動）
+# ==========================================
+set P_GRID := {150, 180, 210, 240};
+set D_GRID := {0, 300, 600, 900};
+
+param max_iter := 50;
+param convergence_tol := 1e-4;
+param current_change;
+param converged_at;
+param damping := 0.5;
+
+param p_old {M};
+param d_old {M};
+param p_new {M};
+param d_new {M};
+param profit_new {M};
+
+# ==========================================
+# CSV 標題列：起點, 迭代, hub, p, d, profit, 完整 x 矩陣, lam, mu
+# ==========================================
+printf "p_start,d_start,iter,Hub,p,d,profit" > 'multistart_results.csv';
+for {i2 in M, j2 in N} { printf ",X%d%d", i2, j2 >> 'multistart_results.csv'; }
+for {i2 in M}          { printf ",lam%d", i2  >> 'multistart_results.csv'; }
+for {j2 in N}          { printf ",mu%d",  j2  >> 'multistart_results.csv'; }
+printf "\n" >> 'multistart_results.csv';
+
+# ==========================================
+# 外層迴圈：掃描每一組 (p0, d0)
+# ==========================================
+for {p0 in P_GRID} {
+    for {d0 in D_GRID} {
+
+        printf "\n========== 測試起點: p0=%g, d0=%g ==========\n", p0, d0;
+
+        let {i in M} p[i] := p0;
+        let {i in M} d[i] := d0;
+
+        let current_change := 999; #保證進入迴圈
+        let converged_at := -1;
+
+        for {iter in 1..max_iter} {
+            let current_change := 0;
+
+            for {i in M} {
+                let p_old[i] := p[i];
+                let d_old[i] := d[i];
+
+                objective Hub_profit[i];
+
+                fix {other_i in M: other_i != i} p[other_i];
+                fix {other_i in M: other_i != i} d[other_i];
+                unfix p[i];
+                unfix d[i];
+
+                solve;
+
+                let p_new[i] := p[i];
+                let d_new[i] := d[i];
+                let profit_new[i] := Hub_profit[i];
+
+                if profit_new[i] < -1e-3 then {
+                    let d_new[i] := 0;
+                    let profit_new[i] := 0;
+                }
+
+                if iter == 1 then {
+                    let p[i] := p_new[i];
+                    let d[i] := d_new[i];
+                }
+                else {
+                    let p[i] := (1-damping)*p_old[i] + damping*p_new[i];
+                    let d[i] := (1-damping)*d_old[i] + damping*d_new[i];
+                }
+
+                let current_change := max(current_change, abs(p[i]-p_old[i]));
+                let current_change := max(current_change, abs(d[i]-d_old[i]));
+
+                # ---- 每個 hub 求解完，立刻記錄這一筆（含當下完整 x 矩陣與對偶變數 lam / mu） ----
+                printf "%g,%g,%d,%d,%.6f,%.6f,%.6f",
+                       p0, d0, iter, i, p_new[i], d_new[i], profit_new[i]
+                       >> 'multistart_results.csv';
+                for {i2 in M, j2 in N} {
+                    printf ",%.6f", x[i2,j2] >> 'multistart_results.csv';
+                }
+                for {i2 in M} {
+                    printf ",%.6f", lam[i2] >> 'multistart_results.csv';
+                }
+                for {j2 in N} {
+                    printf ",%.6f", mu[j2] >> 'multistart_results.csv';
+                }
+                printf "\n" >> 'multistart_results.csv';
+            }
+
+            if current_change < convergence_tol then {
+                let converged_at := iter;
+                break;
+            }
+        }
+
+        printf "  -> 起點(p0=%g, d0=%g) 於第 %d 輪收斂\n", p0, d0, converged_at;
+    }
+}
+
+printf "\n✅ 所有起點測試完成，逐輪逐Hub結果存於 multistart_results.csv\n";

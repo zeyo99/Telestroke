@@ -84,8 +84,8 @@ subject to ratio_constraints_hub {i in 1..m}:
 #KKT condition of Spoke(Spoke 層級限制式)
 
 #FOC
-s.t. Stationarity_x {i in 1..m, j in 1..n}:
-     lam[i]+ (mu[j] +1)* (p[i] + c_spoke[j]) + pref_noise[i,j] + L[j] #雙線性2
+s.t. Stationarity_x {i in 1..m, j in 1..n}:    
+     lam[i] + (mu[j] +1)* (p[i] + c_spoke[j]) + pref_noise[i,j] + L[j] #雙線性2
      - sum {k in j+1..n} R[i,j,k] + sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; 
 
 s.t. StationarityForY_p{j in 1..n}:

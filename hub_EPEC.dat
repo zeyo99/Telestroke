@@ -13,6 +13,7 @@ param s :=
 param c_hub := 
 1 200
 2 200;   # Hub 醫院單位成本
+
 param gamma := 0.03;		
 param theta1 := 1.2;  # 收入支出比率限制 
 param theta2 :=  0.05;  # 容量增加與成本減少權重
