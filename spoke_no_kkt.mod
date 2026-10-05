@@ -75,7 +75,7 @@ minimize total_obj:
 # ==========================================
 s.t. Stationarity_x {i in 1..m, j in 1..n}:
      lam[i]+ (mu[j]+1) * (p[i] + c_spoke[j]) + pref_noise[i,j] + L[j] 
-     - sum {k in j+1..n} R[i,j,k] + sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; 
+      + sum {k in j+1..n} R[i,j,k] - sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; 
 
 s.t. StationarityForY_p{j in 1..n}:
 	M_penalty + L[j] - Yd_p[j] = 0;
@@ -91,14 +91,7 @@ s.t. StationarityForZ_n{i in 1..m, j in 1..n-1, k in j+1..n}:
 	
 #Comlementary Slackness 替換
 
-#強對偶等式
-/*
-s.t. Strong_Duality:
-	sum {j in 1..n}(Y_p[j] + Y_n[j])
-    + delta * ( sum{i in 1..m} sum{j in 1..n-1} sum{k in j+1..n} (Z_p[i,j,k] + Z_n[i,j,k]))
-    = 
-    - sum{i in M}(lam[i] * d[i] ) - sum{j in N}(mu[j] * B_spoke[j]) + sum{j in N}(L[j] * T[j]);
- */  
+
  
  #邏輯指示限制式 (Indicator Constraints)
 # --- Capacity 互補 (lam * S_c = 0) ---

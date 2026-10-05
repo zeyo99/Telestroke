@@ -5,12 +5,13 @@ data hub_EPEC.dat;
 option solver gurobi;
 option gurobi_options 'nonconvex=2 mipgap=1e-9';
 
-let {i in M} p[i] := 200;
+let {i in M} p[i] := 240;
 let {i in M} d[i] := 690;
 
 param max_iter := 50;
 param convergence_tol := 1e-4;
 param current_change;
+param solve_failed;
 param damping := 0.5;
 
 param p_old {M};
@@ -18,6 +19,12 @@ param d_old {M};
 param p_new {M};
 param d_new {M};
 param profit_new {M};
+
+# ---- Hub 求解順序設定（測試順序時，取消註解所需設定並註解目前設定） ----
+# 預設：依 M 的原始順序求解（從 Hub 1 開始）
+set M_solve_order := M;
+# 測試自訂順序範例（請依 M 中的 Hub 編號調整）：
+# set M_solve_order := {2, 1};
 
 # ---- 寫入 CSV 檔頭標題列 ----
 printf "iter,Hub,p,d,profit" > 'diagonalization_log.csv';
@@ -27,10 +34,12 @@ printf "\n" >> 'diagonalization_log.csv';
 printf "\n=== 開始執行對角化演算法 (Diagonalization Algorithm, 含阻尼) ===\n";
 printf "阻尼係數 damping = %g (第一輪不套用)\n\n", damping;
 
+let solve_failed := 0;
+
 for {iter in 1..max_iter} {
     let current_change := 0;
 
-    for {i in M} {
+    for {i in M_solve_order} {
         let p_old[i] := p[i];
         let d_old[i] := d[i];
 
@@ -42,7 +51,16 @@ for {iter in 1..max_iter} {
         unfix p[i];
         unfix d[i];
 
+        drop {j in 1..m: j <> i} ratio_constraints_hub[j];
         solve;
+        restore ratio_constraints_hub;
+
+        if solve_result <> 'solved' then {
+            printf "[警告] 迭代 %d Hub %d 求解失敗: %s (%d)\n",
+                   iter, i, solve_result, solve_result_num;
+            let solve_failed := 1;
+            break;
+        }
 
         let p_new[i] := p[i];
         let d_new[i] := d[i];
@@ -71,9 +89,9 @@ for {iter in 1..max_iter} {
         printf "[迭代 %2d | Hub %d] 最佳反應(原始): p=%10.4f  d=%10.4f  profit=%14.4f  -> 採用值: p=%10.4f  d=%10.4f\n",
                iter, i, p_new[i], d_new[i], profit_new[i], p[i], d[i];
 
-        # ---- 寫入資料欄位（7個基本欄位） ----
-        printf "%d,%d,%.6f,%.6f,%.6f,%.6f,%.6f",
-               iter, i, p_new[i], d_new[i], profit_new[i], p[i], d[i]
+        # ---- 寫入資料欄位（5個基本欄位） ----
+        printf "%d,%d,%.6f,%.6f,%.6f",
+               iter, i, p[i], d[i], profit_new[i]
                >> 'diagonalization_log.csv';
 
         # ---- 寫入流量變數 X_ij ----
@@ -81,6 +99,10 @@ for {iter in 1..max_iter} {
             printf ",%.6f", x[i2,j2] >> 'diagonalization_log.csv';
         }
         printf "\n" >> 'diagonalization_log.csv';
+    }
+
+    if solve_failed then {
+        break;
     }
 
     printf "\n--- 迭代第 %d 步完成，當前最大策略變動量: %5.6f ---\n\n", iter, current_change;
@@ -94,15 +116,29 @@ for {iter in 1..max_iter} {
     }
 }
 
-if current_change >= convergence_tol then {
-    printf "\n⚠️ 警告：演算法在達到最大迭代次數 (%d) 後仍未收斂。\n\n", max_iter;
+if solve_failed then {
+    printf "\n⚠️ 求解失敗，演算法已停止。\n\n";
+}
+else {
+    if current_change >= convergence_tol then {
+        printf "\n⚠️ 警告：演算法在達到最大迭代次數 (%d) 後仍未收斂。\n\n", max_iter;
+    }
 }
 
 printf "最終各 Hub 均衡競價與容量策略：\n";
-display Hub_profit;
-display p;
-display d;
-display x;
+if solve_failed then {
+    printf "求解失敗，以下為停止時的變數狀態（非均衡解）：\n";
+    display p;
+    display d;
+    display x;
+}
+else {
+    printf "最終各 Hub 均衡競價與容量策略：\n";
+    display Hub_profit;
+    display p;
+    display d;
+    display x;
+}
 #display mu;
 # display budget_constraint_hub.slack;
 # display capacity_constraint_slack.slack;

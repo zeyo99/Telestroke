@@ -64,6 +64,7 @@ var D_cap    {1..m} binary;
 var D_budget {1..n} binary;
 var D_x      {1..m, 1..n} binary;
 var D_yp     {1..n} binary;
+var D_yn     {1..n} binary;
 var D_zp     {i in 1..m,j in 1..n-1, k in j+1..n} binary; # 注意 k 的範圍跟隨 j
 var D_zn     {i in 1..m,j in 1..n-1, k in j+1..n} binary;
 
@@ -78,15 +79,7 @@ maximize Hub1_profit:
         - (c_hub[1] * d1)
     );
 
-#Spoke 目標式
-/*
-minimize Spoke_obj:
-         M_penalty * sum {j in 1..n}(Y_p[j] + Y_n[j]) 
-       + delta * ( sum{i in 1..m} sum{j in 1..n-1} sum{k in j+1..n} (Z_p[i,j,k] + Z_n[i,j,k]))
-       + sum{j in N} sum{i in M} ( (p[i]+ c_spoke[j]) * x[i,j] );
 
-#spoke 選擇不同的hub有不同的p
-*/
 #hub 層級限制式
 
 # 1. Budget constraint for each HUB Hospital
@@ -99,10 +92,10 @@ subject to ratio_constraints_hub :
 
 #KKT condition of Spoke(Spoke 層級限制式)
 
-#FOC
+#Stationarity condition of Spoke
 s.t. Stationarity_x {i in 1..m, j in 1..n}:
      lam[i] + (mu[j]+ 1) * ( (if i==1 then p1 else p2) + c_spoke[j]) + pref_noise[i,j] + L[j] 
-     - sum {k in j+1..n} R[i,j,k] + sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; #納入對手價格
+     + sum {k in j+1..n} R[i,j,k] - sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; #納入對手價格
 
 s.t. StationarityForY_p{j in 1..n}:
 	M_penalty + L[j] - Yd_p[j] = 0;
@@ -133,6 +126,10 @@ s.t. Ind_x_2 {i in 1..m, j in 1..n}: D_x[i,j] == 1 ==> xd[i,j] == 0;
 # --- Y_p 變數互補 (Y_p * Yd_p = 0) ---
 s.t. Ind_yp_1 {j in 1..n}: D_yp[j] == 0 ==> Y_p[j] == 0;
 s.t. Ind_yp_2 {j in 1..n}: D_yp[j] == 1 ==> Yd_p[j] == 0;
+
+# --- Y_n 變數互補 (Y_n * Yd_n = 0) ---
+s.t. Ind_yn_1 {j in 1..n}: D_yn[j] == 0 ==> Y_n[j] == 0;
+s.t. Ind_yn_2 {j in 1..n}: D_yn[j] == 1 ==> Yd_n[j] == 0;
 
 # --- Z_p 變數互補 (Z_p * Zd_p = 0) ---
 s.t. Ind_zp_1 {i in 1..m, j in 1..n-1, k in j+1..n}: D_zp[i,j,k] == 0 ==> Z_p[i,j,k] == 0;

@@ -17,12 +17,12 @@ param gamma := 0.03;
 param theta1 := 1.2;  # 收入支出比率限制 
 param theta2 :=  0.05;  # 容量增加與成本減少權重
 param B_hub := 
-1 300000
-2 300000; # Hub 醫院預算 3000000>4000000
+1 100000
+2 100000; # Hub 醫院預算
 
 #將其他Hub的變數固定為參數
 param d2 := 690;
-param p2 := 206; 
+param p2 := 200; 
 
 # Spoke 醫院參數 
 param T := 

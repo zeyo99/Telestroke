@@ -87,15 +87,7 @@ s.t. StationarityForZ_n{i in 1..m, j in 1..n-1, k in j+1..n}:
 	
 #Comlementary Slackness 替換
 
-#強對偶等式
-/*
-s.t. Strong_Duality:
-	sum {j in 1..n}(Y_p[j] + Y_n[j])
-    + delta * ( sum{i in 1..m} sum{j in 1..n-1} sum{k in j+1..n} (Z_p[i,j,k] + Z_n[i,j,k]))
-    = 
-    - sum{i in M}(lam[i] * d[i] ) - sum{j in N}(mu[j] * B_spoke[j]) + sum{j in N}(L[j] * T[j]);
- */  
- 
+
  #邏輯指示限制式 (Indicator Constraints)
 # --- Capacity 互補 (lam * S_c = 0) ---
 s.t. Ind_capacity_1 {i in 1..m}: DV_cap[i] == 0 ==> lam[i] == 0;

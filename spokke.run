@@ -1,12 +1,12 @@
 reset;
-model spoke_no_kkt.mod;
+model spoke_noise.mod;
 data spokke.dat;
 
 option solver gurobi;
 option gurobi_options 'mipgap=0';
 solve;
 
-param mod_name symbolic := "spoke_no_kkt.mod";
+param mod_name symbolic := "spoke_noise.mod";
 
 # Display the allocation of patients from HUB hospitals to Spoke hospitals
 display x;

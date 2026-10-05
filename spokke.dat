@@ -48,4 +48,4 @@ param B_spoke :=
 
 
 # Regularization parameter delta
-param delta := 0.1;
+param delta := 10;

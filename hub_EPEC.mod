@@ -59,6 +59,7 @@ var D_cap    {1..m} binary;
 var D_budget {1..n} binary;
 var D_x      {1..m, 1..n} binary;
 var D_yp     {1..n} binary;
+var D_yn     {1..n} binary;
 var D_zp     {i in 1..m,j in 1..n-1, k in j+1..n} binary; # 注意 k 的範圍跟隨 j
 var D_zn     {i in 1..m,j in 1..n-1, k in j+1..n} binary;
 
@@ -79,14 +80,13 @@ subject to budget_constraint_hub {i in 1..m}:
      c_hub[i] * d[i] - gamma* s[i] * sum{j in 1..n} x[i,j] <= B_hub[i]; 
 # 2. ratio constraint for each HUB Hospital
 subject to ratio_constraints_hub {i in 1..m}:
-    p[i] + theta2 * d[i] <= theta1 * c_hub[i];
-
+    p[i] + theta2 * d[i] >= theta1 * c_hub[i];
 #KKT condition of Spoke(Spoke 層級限制式)
 
-#FOC
+#Stationarity conditions for Spoke Hospitals
 s.t. Stationarity_x {i in 1..m, j in 1..n}:    
      lam[i] + (mu[j] +1)* (p[i] + c_spoke[j]) + pref_noise[i,j] + L[j] #雙線性2
-     - sum {k in j+1..n} R[i,j,k] + sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; 
+     + sum {k in j+1..n} R[i,j,k] - sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0;  #R項先+後-
 
 s.t. StationarityForY_p{j in 1..n}:
 	M_penalty + L[j] - Yd_p[j] = 0;
@@ -94,7 +94,7 @@ s.t. StationarityForY_p{j in 1..n}:
 s.t. StationarityForY_n{j in 1..n}:
 	M_penalty - L[j] - Yd_n[j] = 0;
 	
-s.t. StationarityForZ_p{i in 1..m, j in 1..n-1, k in j+1..n}:
+s.t. StationarityForZ_p{i in 1..m, j in 1..n-1, k in j+1..n}: 
 	delta + R[i,j,k] - Zd_p[i,j,k] = 0;
 	
 s.t. StationarityForZ_n{i in 1..m, j in 1..n-1, k in j+1..n}:
@@ -105,7 +105,7 @@ s.t. StationarityForZ_n{i in 1..m, j in 1..n-1, k in j+1..n}:
  # --- Capacity 互補 (lam * S_c = 0) ---
 s.t. Ind_cap_1 {i in 1..m}: D_cap[i] == 0 ==> lam[i] == 0;
 s.t. Ind_cap_2 {i in 1..m}: D_cap[i] == 1 ==> S_c[i] == 0;
-
+ 
 # --- Budget 互補 (mu * S_b = 0) ---
 s.t. Ind_budget_1 {j in 1..n}: D_budget[j] == 0 ==> mu[j] == 0;
 s.t. Ind_budget_2 {j in 1..n}: D_budget[j] == 1 ==> S_b[j] == 0;
@@ -117,6 +117,10 @@ s.t. Ind_x_2 {i in 1..m, j in 1..n}: D_x[i,j] == 1 ==> xd[i,j] == 0;
 # --- Y_p 變數互補 (Y_p * Yd_p = 0) ---
 s.t. Ind_yp_1 {j in 1..n}: D_yp[j] == 0 ==> Y_p[j] == 0;
 s.t. Ind_yp_2 {j in 1..n}: D_yp[j] == 1 ==> Yd_p[j] == 0;
+
+# --- Y_n 變數互補 (Y_n * Yd_n = 0) ---
+s.t. Ind_yn_1 {j in 1..n}: D_yn[j] == 0 ==> Y_n[j] == 0;
+s.t. Ind_yn_2 {j in 1..n}: D_yn[j] == 1 ==> Yd_n[j] == 0;
 
 # --- Z_p 變數互補 (Z_p * Zd_p = 0) ---
 s.t. Ind_zp_1 {i in 1..m, j in 1..n-1, k in j+1..n}: D_zp[i,j,k] == 0 ==> Z_p[i,j,k] == 0;
