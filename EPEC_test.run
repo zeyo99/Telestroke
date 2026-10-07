@@ -1,0 +1,73 @@
+reset;
+model hub_EPEC.mod;
+data hub_EPEC.dat;
+
+option solver gurobi;
+option gurobi_options 'nonconvex=2 mipgap=1e-9';
+option presolve_eps 1e-6;
+
+# ---- 均衡點（由 hub_EPEC.run 求得） ----
+param p_eq {M};
+param d_eq {M};
+let p_eq[1] := 236.2757;  let d_eq[1] := 74.4866;
+let p_eq[2] := 235.999;  let d_eq[2] := 722.543;
+
+# ---- 測試設定 ----
+param test_hub := 1;     # 被擾動、進行最佳反應的 Hub
+param p_start := 235.5;  # 偏離起點
+param d_start := 722;
+
+param profit_start;
+param profit_br;
+
+printf "\n=== 單邊偏離測試：固定其他 Hub 於均衡，Hub %d 自非均衡起點出發 ===\n\n", test_hub;
+
+# ---- 固定其他 Hub 於均衡 ----
+fix {i in M: i != test_hub} p[i] := p_eq[i];
+fix {i in M: i != test_hub} d[i] := d_eq[i];
+
+objective Hub_profit[test_hub];
+drop {j in 1..m: j <> test_hub} ratio_constraints_hub[j];
+
+# ---- 步驟 1：評估偏離起點的利潤（Hub test_hub 固定在起點） ----
+fix p[test_hub] := p_start;
+fix d[test_hub] := d_start;
+solve;
+
+printf "\n[步驟 1] 偏離起點評估：solve_result = %s\n", solve_result;
+let profit_start := Hub_profit[test_hub];
+printf "起點 p=%10.4f  d=%10.4f  profit=%14.4f\n", p_start, d_start, profit_start;
+display x;
+display budget_constraint_hub.slack, ratio_constraints_hub.slack;
+
+# ---- 步驟 2：解除固定，以偏離點為初始值求最佳反應 ----
+unfix p[test_hub];
+unfix d[test_hub];
+let p[test_hub] := p_start;
+let d[test_hub] := d_start;
+solve;
+
+printf "\n[步驟 2] 最佳反應求解：solve_result = %s\n", solve_result;
+let profit_br := Hub_profit[test_hub];
+
+restore ratio_constraints_hub;
+
+# ---- 比較結果 ----
+printf "\n=================================================================\n";
+printf " Hub %d     %10s  %10s  %14s\n", test_hub, "p", "d", "profit";
+printf " 偏離起點  %10.4f  %10.4f  %14.4f\n", p_start, d_start, profit_start;
+printf " 最佳反應  %10.4f  %10.4f  %14.4f\n", p[test_hub], d[test_hub], profit_br;
+printf " 原均衡點  %10.4f  %10.4f\n", p_eq[test_hub], d_eq[test_hub];
+printf " 與均衡差  |dp|=%.6f  |dd|=%.6f\n",
+       abs(p[test_hub] - p_eq[test_hub]), abs(d[test_hub] - d_eq[test_hub]);
+printf "=================================================================\n";
+
+if abs(p[test_hub] - p_eq[test_hub]) < 1e-2 and abs(d[test_hub] - d_eq[test_hub]) < 1e-2 then
+    printf "✅ Hub %d 回到原均衡點（單邊無偏離誘因）\n\n", test_hub;
+else
+    printf "⚠️  Hub %d 未回到原均衡點，可能存在更佳偏離或多重最佳解\n\n", test_hub;
+
+display Hub_profit;
+display p, d;
+display x;
+display budget_constraint_hub.slack, ratio_constraints_hub.slack;

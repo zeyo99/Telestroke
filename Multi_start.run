@@ -7,7 +7,7 @@ option gurobi_options 'nonconvex=2 mipgap=1e-9';
 option presolve_eps 1e-6;
 
 # ==========================================
-# 多起點掃描設定（固定 Hub1 先動）
+# 多起點掃描設定（Hub 求解順序見 M_solve_order）
 # ==========================================
 set P_GRID := {400, 600, 800, 1000}; #{150,180,210,240}
 set D_GRID := {0, 300, 600, 900};
@@ -25,13 +25,17 @@ param p_new {M};
 param d_new {M};
 param profit_new {M};
 
+# ---- Hub 求解順序設定（測試順序時，取消註解所需設定並註解目前設定） ----
+# 預設：依 M 的原始順序求解（從 Hub 1 開始）
+set M_solve_order := M;
+# 測試自訂順序範例（請依 M 中的 Hub 編號調整）：
+# set M_solve_order := {2, 1};
+
 # ==========================================
-# CSV 標題列：起點, 迭代, hub, p, d, profit, 完整 x 矩陣, lam, mu
+# CSV 標題列：起點, 迭代, hub, p, d, profit, 完整 x 矩陣
 # ==========================================
 printf "p_start,d_start,iter,Hub,p,d,profit" > 'multistart_results.csv';
 for {i2 in M, j2 in N} { printf ",X%d%d", i2, j2 >> 'multistart_results.csv'; }
-for {i2 in M}          { printf ",lam%d", i2  >> 'multistart_results.csv'; }
-for {j2 in N}          { printf ",mu%d",  j2  >> 'multistart_results.csv'; }
 printf "\n" >> 'multistart_results.csv';
 
 # ==========================================
@@ -52,7 +56,7 @@ for {p0 in P_GRID} {
         for {iter in 1..max_iter} {
             let current_change := 0;
 
-            for {i in M} {
+            for {i in M_solve_order} {
                 let p_old[i] := p[i];
                 let d_old[i] := d[i];
 
@@ -93,18 +97,12 @@ for {p0 in P_GRID} {
                 let current_change := max(current_change, abs(p[i]-p_old[i]));
                 let current_change := max(current_change, abs(d[i]-d_old[i]));
 
-                # ---- 每個 hub 求解完，立刻記錄這一筆（含當下完整 x 矩陣與對偶變數 lam / mu） ----
+                # ---- 每個 hub 求解完，立刻記錄這一筆（含當下完整 x 矩陣） ----
                 printf "%g,%g,%d,%d,%.6f,%.6f,%.6f",
                        p0, d0, iter, i, p_new[i], d_new[i], profit_new[i]
                        >> 'multistart_results.csv';
                 for {i2 in M, j2 in N} {
                     printf ",%.6f", x[i2,j2] >> 'multistart_results.csv';
-                }
-                for {i2 in M} {
-                    printf ",%.6f", lam[i2] >> 'multistart_results.csv';
-                }
-                for {j2 in N} {
-                    printf ",%.6f", mu[j2] >> 'multistart_results.csv';
                 }
                 printf "\n" >> 'multistart_results.csv';
             }

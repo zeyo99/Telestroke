@@ -3,10 +3,10 @@ model hub_EPEC.mod;
 data hub_EPEC.dat;
 
 option solver gurobi;
-option gurobi_options 'nonconvex=2 mipgap=1e-9';
+option gurobi_options 'nonconvex=2 mipgap=1e-9 feastol=1e-9 intfeastol=1e-9 numericfocus=3';
 
-let {i in M} p[i] := 240;
-let {i in M} d[i] := 690;
+let {i in M} p[i] := 100;
+let {i in M} d[i] := 200;
 
 param max_iter := 50;
 param convergence_tol := 1e-4;
@@ -18,7 +18,8 @@ param p_old {M};
 param d_old {M};
 param p_new {M};
 param d_new {M};
-param profit_new {M};
+param profit_new {M};      # 最佳反應求解當下的目標值（僅供參考）
+param profit_actual {M};   # 依 Hub_profit 目標式，以當前 p、d 與實際 x 計算的利潤
 
 # ---- Hub 求解順序設定（測試順序時，取消註解所需設定並註解目前設定） ----
 # 預設：依 M 的原始順序求解（從 Hub 1 開始）
@@ -28,6 +29,7 @@ set M_solve_order := M;
 
 # ---- 寫入 CSV 檔頭標題列 ----
 printf "iter,Hub,p,d,profit" > 'diagonalization_log.csv';
+for {i2 in M} { printf ",profit_H%d", i2 >> 'diagonalization_log.csv'; }
 for {i2 in M, j2 in N} { printf ",X%d%d", i2, j2 >> 'diagonalization_log.csv'; }
 printf "\n" >> 'diagonalization_log.csv';
 
@@ -51,9 +53,15 @@ for {iter in 1..max_iter} {
         unfix p[i];
         unfix d[i];
 
-        drop {j in 1..m: j <> i} ratio_constraints_hub[j];
+        # ---- 當前 Hub i 決策時，暫時關閉其他 Hub 的 ratio / budget 限制式 ----
+        drop    {other_i in M: other_i != i} ratio_constraints_hub[other_i];
+        drop    {other_i in M: other_i != i} budget_constraint_hub[other_i];
+
         solve;
-        restore ratio_constraints_hub;
+
+        # ---- 求解完畢，重新加入剛才關閉的其他 Hub 限制式 ----
+        restore {other_i in M: other_i != i} ratio_constraints_hub[other_i];
+        restore {other_i in M: other_i != i} budget_constraint_hub[other_i];
 
         if solve_result <> 'solved' then {
             printf "[警告] 迭代 %d Hub %d 求解失敗: %s (%d)\n",
@@ -83,16 +91,25 @@ for {iter in 1..max_iter} {
             let d[i] := (1 - damping) * d_old[i] + damping * d_new[i];
         }
 
+        # ---- 依 Hub_profit 目標式，以當前 p、d 與實際 x 重新計算所有 Hub 的利潤 ----
+        let {k in M} profit_actual[k] :=
+            (p[k] + s[k]) * (sum {j in N} x[k,j]) - c_hub[k] * d[k];
+
         let current_change := max(current_change, abs(p[i] - p_old[i]));
         let current_change := max(current_change, abs(d[i] - d_old[i]));
 
-        printf "[迭代 %2d | Hub %d] 最佳反應(原始): p=%10.4f  d=%10.4f  profit=%14.4f  -> 採用值: p=%10.4f  d=%10.4f\n",
-               iter, i, p_new[i], d_new[i], profit_new[i], p[i], d[i];
+        printf "[迭代 %2d | Hub %d] 最佳反應(原始): p=%10.4f  d=%10.4f  profit=%14.4f  -> 採用值: p=%10.4f  d=%10.4f  實際profit=%14.4f\n",
+               iter, i, p_new[i], d_new[i], profit_new[i], p[i], d[i], profit_actual[i];
 
         # ---- 寫入資料欄位（5個基本欄位） ----
         printf "%d,%d,%.6f,%.6f,%.6f",
-               iter, i, p[i], d[i], profit_new[i]
+               iter, i, p[i], d[i], profit_actual[i]
                >> 'diagonalization_log.csv';
+
+        # ---- 寫入所有 Hub 在當前狀態下的實際利潤 ----
+        for {k in M} {
+            printf ",%.6f", profit_actual[k] >> 'diagonalization_log.csv';
+        }
 
         # ---- 寫入流量變數 X_ij ----
         for {i2 in M, j2 in N} {
@@ -125,7 +142,7 @@ else {
     }
 }
 
-printf "最終各 Hub 均衡競價與容量策略：\n";
+
 if solve_failed then {
     printf "求解失敗，以下為停止時的變數狀態（非均衡解）：\n";
     display p;
@@ -134,13 +151,16 @@ if solve_failed then {
 }
 else {
     printf "最終各 Hub 均衡競價與容量策略：\n";
-    display Hub_profit;
+    # 依 Hub_profit 目標式，以最終的 p、d 與實際 x 計算各 Hub 利潤
+    # （與 CSV 最後一列的 profit_H* 欄位一致）
+    display profit_actual;
     display p;
     display d;
     display x;
+    display budget_constraint_hub.slack;
+    display capacity_constraint_slack.slack;    
 }
 #display mu;
-# display budget_constraint_hub.slack;
-# display capacity_constraint_slack.slack;
+
 
 printf "\n✅ 詳細迭代紀錄（含x矩陣）已輸出至 diagonalization_log.csv\n";
