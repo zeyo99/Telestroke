@@ -1,6 +1,7 @@
 reset;
 
-model hub1_MPEC.mod;
+param mod_file symbolic := "Hub1_MPEC_kkt.mod";   # 要跑的 mod 檔，改這裡即可
+model (mod_file);
 data hub1_MPEC.dat;
 
 option solver gurobi; 
@@ -10,11 +11,11 @@ solve;
 printf"Round 1\n";
 printf"================== Hub 1 之總利潤====================\n";
 display Hub1_profit;
-#printf"================== Spoke之目標值====================\n";
-#display Spoke_obj;
 printf"====================Hub變數=======================\n";
 display p1,d1;
 printf"===================Spoke變數======================\n";
 display x;
 
 
+printf"==================使用的模型檔====================\n";
+printf"%s\n", mod_file;
