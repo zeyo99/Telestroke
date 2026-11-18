@@ -5,7 +5,8 @@ param m := 2;
 param n := 4;
 
 #Big M
-param M_penalty := 1000;
+param M_penalty := 250;
+#若delta = 0.1 M_penlty需調至280左右
 
 #preference
 param pref_noise : 1 2 3 4 :=
@@ -48,4 +49,4 @@ param B_spoke :=
 
 
 # Regularization parameter delta
-param delta := 10;
+param delta := 0.1;

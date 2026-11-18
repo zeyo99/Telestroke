@@ -4,6 +4,10 @@ param mod_file symbolic := "Hub1_MPEC_kkt.mod";   # 要跑的 mod 檔，改這�
 model (mod_file);
 data hub1_MPEC.dat;
 
+# 其他 hub 的變數固定為常數 (值來自 dat 檔)
+fix {i in M: i != 1} p[i];
+fix {i in M: i != 1} d[i];
+
 option solver gurobi; 
 option gurobi_options 'nonconvex=2';
 solve;
@@ -12,7 +16,7 @@ printf"Round 1\n";
 printf"================== Hub 1 之總利潤====================\n";
 display Hub1_profit;
 printf"====================Hub變數=======================\n";
-display p1,d1;
+display p,d;
 printf"===================Spoke變數======================\n";
 display x;
 

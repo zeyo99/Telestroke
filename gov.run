@@ -1,0 +1,54 @@
+reset;
+
+param mod_file symbolic := "gov.mod";   # 要跑的 mod 檔，改這裡即可
+model (mod_file);
+data gov.dat;
+
+option solver gurobi; 
+# timelim: 求解時間上限(秒)，時間到會停下並回傳目前最佳可行解
+option gurobi_options 'nonconvex=2 mipgap=1e-4 feastol=1e-6 intfeastol=1e-6 numericfocus=1 timelim=6000 outlev=1';
+
+# s 的上界：s > alpha/beta 時每多服務一位病患政府目標反而下降
+# 給 s 上界可大幅縮小非凸雙線性項 (s*x, s*rho) 的分支範圍；不需要時註解掉即可
+param s_max := alpha / beta;
+s.t. s_upper {i in M}: s[i] <= s_max;
+
+# 分配平衡：每家 Hub 服務量至少佔總服務量的 share_min (設 0 即關閉)
+# 只在兩 Hub 的 KKT 點中挑選較平均者，不改變 Hub 本身的決策問題
+param share_min := 0.4;
+s.t. balance {i in M}:
+    sum {j in N} x[i,j] >= share_min * sum {k in M, j in N} x[k,j];
+
+objective GOV;
+solve;
+
+if solve_result = 'limit' then {
+    printf "[注意] 達到時間上限，以下為目前最佳可行解 (非保證最佳): %s (%d)\n", solve_result, solve_result_num;
+}
+else if solve_result <> 'solved' then {
+    printf "[警告] 求解失敗: %s (%d)\n", solve_result, solve_result_num;
+}
+
+# 依 Hub 目標式，以求得的 s、p、d 與 x 計算各 Hub 利潤
+param hub_profit {M};
+let {i in M} hub_profit[i] := (p[i] + s[i]) * (sum {j in N} x[i,j]) - c_hub[i] * d[i];
+
+printf"================== 政府目標值 ====================\n";
+display GOV;
+printf "服務病患總數 sum x       = %12.4f\n", sum {i in M, j in N} x[i,j];
+printf "補助總支出 sum s*x       = %12.4f  (預算 S = %g)\n",
+       sum {i in M} s[i] * sum {j in N} x[i,j], S;
+printf"====================Gov變數=======================\n";
+display s;
+printf"====================Hub變數=======================\n";
+display p,d;
+display hub_profit;
+printf"===================Spoke變數======================\n";
+display x;
+printf"===================限制式 slack======================\n";
+display gov_budget.slack;
+display budget_constraint_hub.slack;
+display capacity_constraint_slack.slack;
+
+printf"==================使用的模型檔====================\n";
+printf"%s\n", mod_file;

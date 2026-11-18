@@ -14,10 +14,6 @@ param theta2;
 param c_hub {1..m};        # Additional cost for each HUB Hospital
 param B_hub {1..m};        # Budget for each HUB Hospital
 
-#固定hub1的變數為參數
-param p1;
-param d1;
-
 #spoke參數
 param c_spoke {1..n};      # Additional cost for each spoke Hospital
 param B_spoke {1..n};      # Budget for each spoke Hospital
@@ -32,9 +28,9 @@ param pref_noise {1..m, 1..n} ; #default Uniform(0.1, 5.0);
 
 #Variables
 
-#Hub 2變數
-var p2 >= 0; 
-var d2 >= 0;
+#Hub變數 (只有 p[2], d[2] 是 Hub 2 的決策；其他 hub 在 run 檔中 fix 為常數)
+var p {i in M} >= 0;
+var d {i in M} >= 0;
 
 #Spoke變數
 var x {i in 1..m, j in 1..n} >= 0; #convex programming 要求變數連續可微
@@ -71,10 +67,10 @@ var D_zn     {i in 1..m,j in 1..n-1, k in j+1..n} binary;
 maximize Hub2_profit:
     (
         # 收入部分：(價格 + 政府補助) * 該醫院收治的所有 Spoke 病患總數
-        (p2 +  s[2]) * (sum {j in 1..n} x[2,j]) #雙線性1
+        (p[2] +  s[2]) * (sum {j in 1..n} x[2,j]) #雙線性1
         
         # 支出部分：該 Hub 的技術支援總成本
-        - (c_hub[2] * d2)
+        - (c_hub[2] * d[2])
     );
 
 #Spoke 目標式
@@ -88,17 +84,17 @@ minimize Spoke_obj:
 
 # 1. Budget constraint for each HUB Hospital
 subject to budget_constraint_hub :
-     c_hub[2] * d2 <= B_hub[2] + gamma* s[2]* sum{j in 1..n} x[2,j];
+     c_hub[2] * d[2] <= B_hub[2] + gamma* s[2]* sum{j in 1..n} x[2,j];
  
 # 2. ratio constraint for each HUB Hospital
 subject to ratio_constraints_hub :
-	p2 >= theta1 * c_hub[2]-theta2 * d2;
+	p[2] >= theta1 * c_hub[2]-theta2 * d[2];
 
 #KKT condition of Spoke(Spoke 層級限制式)
 
 #FOC
 s.t. Stationarity_x {i in 1..m, j in 1..n}:
-     lam[i]+ (mu[j] + 1) * ((if i==1 then p1 else p2) + c_spoke[j]) + pref_noise[i,j] + L[j] #雙線性2
+     lam[i]+ (mu[j] + 1) * (p[i] + c_spoke[j]) + pref_noise[i,j] + L[j] #雙線性2
      - sum {k in j+1..n} R[i,j,k] + sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0; 
 
 s.t. StationarityForY_p{j in 1..n}:
@@ -141,11 +137,11 @@ s.t. Ind_zn_2 {i in 1..m, j in 1..n-1, k in j+1..n}: D_zn[i,j,k] == 1 ==> Zd_n[i
 
 #Constraints of Spoke
 s.t. capacity_constraint_slack {i in 1..m}:
-    sum {j in 1..n} x[i,j] + S_c[i] = (if i==1 then d1 else d2);
+    sum {j in 1..n} x[i,j] + S_c[i] = d[i];
     
 
 s.t. cost_constraint_slack {j in 1..n}:
-    sum {i in 1..m} ((if i==1 then p1 else p2) + c_spoke[j]) * x[i,j] + S_b[j] = B_spoke[j]; #雙線性3
+    sum {i in 1..m} (p[i] + c_spoke[j]) * x[i,j] + S_b[j] = B_spoke[j]; #雙線性3
     
 s.t. y_var_constraint{j in 1..n}:
 	Y_p[j] - Y_n[j] = T[j] - sum{i in 1..m}x[i,j];

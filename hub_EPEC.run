@@ -5,14 +5,14 @@ data hub_EPEC.dat;
 option solver gurobi;
 option gurobi_options 'nonconvex=2 mipgap=1e-9 feastol=1e-9 intfeastol=1e-9 numericfocus=3';
 
-let {i in M} p[i] := 100;
-let {i in M} d[i] := 200;
+let {i in M} p[i] := 240;
+let {i in M} d[i] := 690;
 
 param max_iter := 50;
 param convergence_tol := 1e-4;
 param current_change;
 param solve_failed;
-param damping := 0.5;
+param damping := 1;
 
 param p_old {M};
 param d_old {M};

@@ -1,6 +1,3 @@
-# Hub 1 MPEC 的 KKT 系統 (對應 Hub_mpec_kkt_2.1.pdf)
-# Hub 2 的 p2, d2 視為參數
-
 # Parameters
 param m;          # Number of Hub Hospitals
 param n;          # Number of Spoke Hospitals
@@ -16,10 +13,6 @@ param theta1;			   # Predefined ratio for payment-cost constraint
 param theta2;
 param c_hub {1..m};        # Additional cost for each HUB Hospital
 param B_hub {1..m};        # Budget for each HUB Hospital
-
-#固定hub2的變數為參數
-param p2;
-param d2;
 
 #spoke參數
 param c_spoke {1..n};      # Additional cost for each spoke Hospital
@@ -37,9 +30,9 @@ param pref_noise {1..m, 1..n} ; #default Uniform(0.1, 5.0);
 # Variables
 #==================================================================
 
-#Hub 1變數
-var p1 >= 0;
-var d1 >= 0;
+#Hub變數 (只有 p[1], d[1] 是 Hub 1 的決策；其他 hub 在 run 檔中 fix 為常數)
+var p {i in M} >= 0;
+var d {i in M} >= 0;
 
 #Spoke變數
 var x {i in 1..m, j in 1..n} >= 0;
@@ -68,8 +61,8 @@ var S_b{j in N} >= 0;
 # Hub 限制式 (>= 0)
 var rho1   >= 0;        # budget_constraint_hub
 var sigma1 >= 0;        # ratio_constraints_hub
-var eta_d  >= 0;        # d1 >= 0
-var eta_p  >= 0;        # p1 >= 0
+var eta_d  >= 0;        # d[1] >= 0
+var eta_p  >= 0;        # p[1] >= 0
 
 # Spoke Stationarity 之乘數 W (free)
 var W_x  {i in 1..m, j in 1..n};
@@ -127,7 +120,7 @@ var b_sb  {j in 1..n} binary;
 # hub1目標式
 #==================================================================
 maximize Hub1_profit:
-    (p1 + s[1]) * (sum {j in 1..n} x[1,j]) - (c_hub[1] * d1);
+    (p[1] + s[1]) * (sum {j in 1..n} x[1,j]) - (c_hub[1] * d[1]);
 
 #==================================================================
 # ① Stationarity
@@ -143,11 +136,11 @@ s.t. Stat_p1:
     - sum {j in 1..n} zeta_B[j] * x[1,j] = 0;
 
 #--- (Spoke 原變數) ---
-# h = 1 有收入項 (p1 + s1 + gamma*s1*rho1)；h = 2 無收入項，僅透過 zeta 影響 Spoke 可行域
+# h = 1 有收入項 (p[1] + s1 + gamma*s1*rho1)；h = 2 無收入項，僅透過 zeta 影響 Spoke 可行域
 s.t. Stat_x {i in 1..m, j in 1..n}:
-    (if i == 1 then (p1 + s[1] + gamma * s[1] * rho1) else 0)
+    (if i == 1 then (p[1] + s[1] + gamma * s[1] * rho1) else 0)
     - zeta_c[i]
-    - ((if i == 1 then p1 else p2) + c_spoke[j]) * zeta_B[j]
+    - (p[i] + c_spoke[j]) * zeta_B[j]
     - zeta_y[j]
     - sum {k in j+1..n} zeta_z[i,j,k]
     + sum {k in 1..j-1} zeta_z[i,k,j]
@@ -167,7 +160,7 @@ s.t. Stat_lam {i in 1..m}:
     - sum {j in 1..n} W_x[i,j] + V_lam[i] = 0;
 
 s.t. Stat_mu {j in 1..n}:
-    - sum {i in 1..m} W_x[i,j] * ((if i == 1 then p1 else p2) + c_spoke[j]) + V_mu[j] = 0;
+    - sum {i in 1..m} W_x[i,j] * (p[i] + c_spoke[j]) + V_mu[j] = 0;
 
 s.t. Stat_L {j in 1..n}:
     - sum {i in 1..m} W_x[i,j] - W_yp[j] + W_yn[j] = 0;
@@ -188,27 +181,30 @@ s.t. Stat_Zdn {i in 1..m, j in 1..n-1, k in j+1..n}: W_zn[i,j,k] + V_dzn[i,j,k] 
 #--- (Hub 限制式) ---
 # 原限制式已保證 slack >= 0，故 b=0 時只需加反向不等式即可迫使 slack = 0
 # (避免 "==> 等式" 被 AMPL 拆成 or 而產生 aux var tolerance violation)
-# rho1 ⊥ (B_hub + gamma*s1*sum x1j - c_hub*d1)
+# rho1 ⊥ (B_hub + gamma*s1*sum x1j - c_hub*d[1])
 s.t. Comp_rho_1: b_rho == 1 ==> rho1 = 0;
-s.t. Comp_rho_2: b_rho == 0 ==> c_hub[1] * d1 >= B_hub[1] + gamma * s[1] * sum {j in 1..n} x[1,j];
+s.t. Comp_rho_2: b_rho == 0 ==> c_hub[1] * d[1] >= B_hub[1] + gamma * s[1] * sum {j in 1..n} x[1,j];
 
-# sigma1 ⊥ (p1 + theta2*d1 - theta1*c_hub)
+# sigma1 ⊥ (p[1] + theta2*d[1] - theta1*c_hub)
 s.t. Comp_sigma_1: b_sigma == 1 ==> sigma1 = 0;
-s.t. Comp_sigma_2: b_sigma == 0 ==> p1 + theta2 * d1 <= theta1 * c_hub[1];
+s.t. Comp_sigma_2: b_sigma == 0 ==> p[1] + theta2 * d[1] <= theta1 * c_hub[1];
 
-# eta_p ⊥ p1 ; eta_d ⊥ d1
+# eta_p ⊥ p[1] ; eta_d ⊥ d[1]
 s.t. Comp_etap_1: b_etap == 1 ==> eta_p = 0;
-s.t. Comp_etap_2: b_etap == 0 ==> p1 <= 0;
+s.t. Comp_etap_2: b_etap == 0 ==> p[1] <= 0;
 s.t. Comp_etad_1: b_etad == 1 ==> eta_d = 0;
-s.t. Comp_etad_2: b_etad == 0 ==> d1 <= 0;
+s.t. Comp_etad_2: b_etad == 0 ==> d[1] <= 0;
 
 #--- (Spoke level 變數互補 + Hub level V 互補, M-stationarity) ---
 # x ⊥ xd
+#x ⊥ Dx
 s.t. Cx_1 {i in 1..m, j in 1..n}: b_x[i,j]  == 1 ==> x[i,j]  = 0;
 s.t. Cx_2 {i in 1..m, j in 1..n}: b_xd[i,j] == 1 ==> xd[i,j] = 0;
 s.t. Cx_3 {i in 1..m, j in 1..n}: b_x[i,j] + b_xd[i,j] >= 1;
+# Vx·x = 0、Vdx·Dx = 0
 s.t. Cx_4 {i in 1..m, j in 1..n}: b_x[i,j]  == 0 ==> V_x[i,j]  = 0;
 s.t. Cx_5 {i in 1..m, j in 1..n}: b_xd[i,j] == 0 ==> V_dx[i,j] = 0;
+#biactive : x= 0, Dx=0 => Vx >= 0, Vdx >= 0
 s.t. Cx_6 {i in 1..m, j in 1..n}: b_xd[i,j] == 1 ==> V_x[i,j]  >= 0;
 s.t. Cx_7 {i in 1..m, j in 1..n}: b_x[i,j]  == 1 ==> V_dx[i,j] >= 0;
 
@@ -272,14 +268,14 @@ s.t. Cmu_7 {j in 1..n}: b_mu[j] == 1 ==> V_sB[j] >= 0;
 
 #--- A. Hub 限制式 ---
 subject to budget_constraint_hub :
-     c_hub[1] * d1 <= B_hub[1] + gamma * s[1] * sum{j in 1..n} x[1,j];
+     c_hub[1] * d[1] <= B_hub[1] + gamma * s[1] * sum{j in 1..n} x[1,j];
 
 subject to ratio_constraints_hub :
-	p1 + theta2 * d1 >= theta1 * c_hub[1];
+	p[1] + theta2 * d[1] >= theta1 * c_hub[1];
 
 #--- B-i. Stationarity of Spoke ---
 s.t. Stationarity_x {i in 1..m, j in 1..n}:
-     lam[i] + (mu[j]+ 1) * ( (if i==1 then p1 else p2) + c_spoke[j]) + pref_noise[i,j] + L[j]
+     lam[i] + (mu[j]+ 1) * ( p[i] + c_spoke[j]) + pref_noise[i,j] + L[j]
      + sum {k in j+1..n} R[i,j,k] - sum {k in 1..j-1} R[i,k,j] - xd[i,j] = 0;
 
 s.t. StationarityForY_p{j in 1..n}:
@@ -296,10 +292,10 @@ s.t. StationarityForZ_n{i in 1..m, j in 1..n-1, k in j+1..n}:
 
 #--- B-ii. Spoke 之原限制式 ---
 s.t. capacity_constraint_slack {i in 1..m}:
-    sum {j in 1..n} x[i,j] + S_c[i] = (if i==1 then d1 else d2);
+    sum {j in 1..n} x[i,j] + S_c[i] = d[i];
 
 s.t. cost_constraint_slack {j in 1..n}:
-    sum {i in 1..m} ( (if i==1 then p1 else p2) + c_spoke[j]) * x[i,j] + S_b[j] = B_spoke[j];
+    sum {i in 1..m} ( p[i] + c_spoke[j]) * x[i,j] + S_b[j] = B_spoke[j];
 
 s.t. y_var_constraint{j in 1..n}:
 	Y_p[j] - Y_n[j] = T[j] - sum{i in 1..m}x[i,j];
@@ -307,4 +303,4 @@ s.t. y_var_constraint{j in 1..n}:
 s.t. z_var_constraint {i in 1..m, j in 1..n-1, k in j+1..n}:
     Z_p[i,j,k] - Z_n[i,j,k] = x[i,k] - x[i,j] ;
 
-# ④ 非負限制：已寫在 var 宣告 (>= 0 / free)
+# ④ 變數本身之限制：已寫在 var 宣告 (>= 0 / free)

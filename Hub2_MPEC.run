@@ -1,19 +1,25 @@
 reset;
 
-model hub2_MPEC.mod;
+param mod_file symbolic := "Hub2_MPEC.mod";   # 要跑的 mod 檔，改這裡即可
+model (mod_file);
 data hub2_MPEC.dat;
+
+# 其他 hub 的變數固定為常數 (值來自 dat 檔)
+fix {i in M: i != 2} p[i];
+fix {i in M: i != 2} d[i];
 
 option solver gurobi; 
 option gurobi_options 'nonconvex=2';
 solve;
 
 printf"Round 2\n";
-printf"==================Hub2 之總利潤(R2)====================\n";
+printf"================== Hub 2 之總利潤====================\n";
 display Hub2_profit;
-#printf"==================Spoke之目標值====================\n";
-#display Spoke_obj;
 printf"====================Hub變數=======================\n";
-display p2,d2;
+display p,d;
 printf"===================Spoke變數======================\n";
 display x;
 
+
+printf"==================使用的模型檔====================\n";
+printf"%s\n", mod_file;

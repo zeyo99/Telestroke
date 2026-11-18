@@ -10,6 +10,7 @@ param mod_name symbolic := "spoke_noise.mod";
 
 # Display the allocation of patients from HUB hospitals to Spoke hospitals
 display x;
+display sum {i in M, j in N} x[i,j] ;
 display total_obj;
 display delta;
 printf "--- solve %s in %s ---\n", mod_name, $solver;
