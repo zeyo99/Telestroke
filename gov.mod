@@ -50,16 +50,17 @@ var Z_p{i in 1..m, j in 1..n-1, k in j+1..n} >= 0;
 var Z_n{i in 1..m, j in 1..n-1, k in j+1..n} >= 0;
 
 #Spoke對偶變數(拉格朗日乘數)
-var lam{i in 1..m} >=0;
-var mu{j in  1..n} >=0;
-var L{j in 1..n};
-var R{i in 1..m, j in 1..n-1, k in j+1..n};
+# 上下界由 Spoke stationarity 推得 (有效界限，不會切掉可行解)
+var lam{i in 1..m} >= 0, <= M_penalty + (n-1)*delta;
+var mu{j in  1..n} >= 0, <= (M_penalty + (n-1)*delta) / c_spoke[j];
+var L{j in 1..n} >= -M_penalty, <= M_penalty;
+var R{i in 1..m, j in 1..n-1, k in j+1..n} >= -delta, <= delta;
 
 var xd{i in 1..m, j in 1..n} >= 0;
-var Yd_p{j in 1..n} >=0;
-var Yd_n{j in 1..n} >=0;
-var Zd_p{i in 1..m, j in 1..n-1, k in j+1..n} >= 0;
-var Zd_n{i in 1..m, j in 1..n-1, k in j+1..n} >= 0;
+var Yd_p{j in 1..n} >= 0, <= 2*M_penalty;
+var Yd_n{j in 1..n} >= 0, <= 2*M_penalty;
+var Zd_p{i in 1..m, j in 1..n-1, k in j+1..n} >= 0, <= 2*delta;
+var Zd_n{i in 1..m, j in 1..n-1, k in j+1..n} >= 0, <= 2*delta;
 
 #Spoke slack變數
 var S_c{i in M} >= 0;

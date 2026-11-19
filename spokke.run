@@ -15,3 +15,4 @@ display total_obj;
 display delta;
 printf "--- solve %s in %s ---\n", mod_name, $solver;
 
+
